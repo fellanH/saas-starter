@@ -5,68 +5,121 @@ import {
   text,
   timestamp,
   integer,
-} from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+  index,
+  pgEnum,
+} from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 
-export const users = pgTable('users', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 100 }),
-  email: varchar('email', { length: 255 }).notNull().unique(),
-  passwordHash: text('password_hash').notNull(),
-  role: varchar('role', { length: 20 }).notNull().default('member'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  deletedAt: timestamp('deleted_at'),
-});
+export const userRoleEnum = pgEnum("user_role", ["owner", "admin", "member"]);
+export const teamRoleEnum = pgEnum("team_role", ["owner", "admin", "member"]);
 
-export const teams = pgTable('teams', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 100 }).notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  stripeCustomerId: text('stripe_customer_id').unique(),
-  stripeSubscriptionId: text('stripe_subscription_id').unique(),
-  stripeProductId: text('stripe_product_id'),
-  planName: varchar('plan_name', { length: 50 }),
-  subscriptionStatus: varchar('subscription_status', { length: 20 }),
-});
+export const users = pgTable(
+  "users",
+  {
+    id: serial("id").primaryKey(),
+    name: varchar("name", { length: 100 }),
+    email: varchar("email", { length: 255 }).notNull().unique(),
+    passwordHash: text("password_hash").notNull(),
+    role: userRoleEnum("role").notNull().default("member"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at"),
+  },
+  (table) => {
+    return {
+      emailIdx: index("email_idx").on(table.email),
+    };
+  }
+);
 
-export const teamMembers = pgTable('team_members', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id')
-    .notNull()
-    .references(() => users.id),
-  teamId: integer('team_id')
-    .notNull()
-    .references(() => teams.id),
-  role: varchar('role', { length: 50 }).notNull(),
-  joinedAt: timestamp('joined_at').notNull().defaultNow(),
-});
+export const teams = pgTable(
+  "teams",
+  {
+    id: serial("id").primaryKey(),
+    name: varchar("name", { length: 100 }).notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    stripeCustomerId: text("stripe_customer_id").unique(),
+    stripeSubscriptionId: text("stripe_subscription_id").unique(),
+    stripeProductId: text("stripe_product_id"),
+    planName: varchar("plan_name", { length: 50 }),
+    subscriptionStatus: varchar("subscription_status", { length: 20 }),
+  },
+  (table) => {
+    return {
+      customerIdIdx: index("customer_id_idx").on(table.stripeCustomerId),
+      subscriptionIdIdx: index("subscription_id_idx").on(
+        table.stripeSubscriptionId
+      ),
+    };
+  }
+);
 
-export const activityLogs = pgTable('activity_logs', {
-  id: serial('id').primaryKey(),
-  teamId: integer('team_id')
-    .notNull()
-    .references(() => teams.id),
-  userId: integer('user_id').references(() => users.id),
-  action: text('action').notNull(),
-  timestamp: timestamp('timestamp').notNull().defaultNow(),
-  ipAddress: varchar('ip_address', { length: 45 }),
-});
+export const teamMembers = pgTable(
+  "team_members",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    teamId: integer("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    role: teamRoleEnum("role").notNull(),
+    joinedAt: timestamp("joined_at").notNull().defaultNow(),
+  },
+  (table) => {
+    return {
+      userIdx: index("user_id_idx").on(table.userId),
+      teamIdx: index("team_id_idx").on(table.teamId),
+    };
+  }
+);
 
-export const invitations = pgTable('invitations', {
-  id: serial('id').primaryKey(),
-  teamId: integer('team_id')
-    .notNull()
-    .references(() => teams.id),
-  email: varchar('email', { length: 255 }).notNull(),
-  role: varchar('role', { length: 50 }).notNull(),
-  invitedBy: integer('invited_by')
-    .notNull()
-    .references(() => users.id),
-  invitedAt: timestamp('invited_at').notNull().defaultNow(),
-  status: varchar('status', { length: 20 }).notNull().default('pending'),
-});
+export const activityLogs = pgTable(
+  "activity_logs",
+  {
+    id: serial("id").primaryKey(),
+    teamId: integer("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    userId: integer("user_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
+    action: text("action").notNull(),
+    timestamp: timestamp("timestamp").notNull().defaultNow(),
+    ipAddress: varchar("ip_address", { length: 45 }),
+  },
+  (table) => {
+    return {
+      teamIdx: index("activity_logs_team_id_idx").on(table.teamId),
+      userIdx: index("activity_logs_user_id_idx").on(table.userId),
+    };
+  }
+);
+
+export const invitations = pgTable(
+  "invitations",
+  {
+    id: serial("id").primaryKey(),
+    teamId: integer("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    email: varchar("email", { length: 255 }).notNull(),
+    role: teamRoleEnum("role").notNull(),
+    invitedBy: integer("invited_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    invitedAt: timestamp("invited_at").notNull().defaultNow(),
+    status: varchar("status", { length: 20 }).notNull().default("pending"),
+  },
+  (table) => {
+    return {
+      teamIdx: index("invitations_team_id_idx").on(table.teamId),
+      emailIdx: index("invitations_email_idx").on(table.email),
+    };
+  }
+);
 
 export const teamsRelations = relations(teams, ({ many }) => ({
   teamMembers: many(teamMembers),
@@ -124,19 +177,19 @@ export type Invitation = typeof invitations.$inferSelect;
 export type NewInvitation = typeof invitations.$inferInsert;
 export type TeamDataWithMembers = Team & {
   teamMembers: (TeamMember & {
-    user: Pick<User, 'id' | 'name' | 'email'>;
+    user: Pick<User, "id" | "name" | "email">;
   })[];
 };
 
 export enum ActivityType {
-  SIGN_UP = 'SIGN_UP',
-  SIGN_IN = 'SIGN_IN',
-  SIGN_OUT = 'SIGN_OUT',
-  UPDATE_PASSWORD = 'UPDATE_PASSWORD',
-  DELETE_ACCOUNT = 'DELETE_ACCOUNT',
-  UPDATE_ACCOUNT = 'UPDATE_ACCOUNT',
-  CREATE_TEAM = 'CREATE_TEAM',
-  REMOVE_TEAM_MEMBER = 'REMOVE_TEAM_MEMBER',
-  INVITE_TEAM_MEMBER = 'INVITE_TEAM_MEMBER',
-  ACCEPT_INVITATION = 'ACCEPT_INVITATION',
+  SIGN_UP = "SIGN_UP",
+  SIGN_IN = "SIGN_IN",
+  SIGN_OUT = "SIGN_OUT",
+  UPDATE_PASSWORD = "UPDATE_PASSWORD",
+  DELETE_ACCOUNT = "DELETE_ACCOUNT",
+  UPDATE_ACCOUNT = "UPDATE_ACCOUNT",
+  CREATE_TEAM = "CREATE_TEAM",
+  REMOVE_TEAM_MEMBER = "REMOVE_TEAM_MEMBER",
+  INVITE_TEAM_MEMBER = "INVITE_TEAM_MEMBER",
+  ACCEPT_INVITATION = "ACCEPT_INVITATION",
 }
