@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useDashboard } from "../context";
 import { DashboardCard } from "./dashboard-card";
 import { CheckCircle, Edit3, FileText, Send } from "./icons";
+import Link from "next/link";
 
 export function CurrentBylawsCard({
   name,
@@ -99,6 +100,22 @@ export function CurrentBylawsCard({
             </Button>
           )}
         </div>
+        {userRole === "board" && (
+          <div className="mt-4 pt-4 border-t border-slate-200">
+            <h4 className="font-semibold text-slate-800 mb-3">
+              Styrelseåtgärder
+            </h4>
+            <div className="flex flex-wrap gap-3">
+              <Button variant="outline">
+                <Edit3 className="mr-2 h-4 w-4" />
+                Hantera Stadgar
+              </Button>
+              <Link href="/dashboard/upload" passHref>
+                <Button variant="outline">Ladda upp</Button>
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardCard>
   );

@@ -121,10 +121,29 @@ export const invitations = pgTable(
   }
 );
 
+export const bylaws = pgTable(
+  "bylaws",
+  {
+    id: serial("id").primaryKey(),
+    teamId: integer("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => {
+    return {
+      teamIdx: index("bylaws_team_id_idx").on(table.teamId),
+    };
+  }
+);
+
 export const teamsRelations = relations(teams, ({ many }) => ({
   teamMembers: many(teamMembers),
   activityLogs: many(activityLogs),
   invitations: many(invitations),
+  bylaws: many(bylaws),
 }));
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -154,6 +173,13 @@ export const teamMembersRelations = relations(teamMembers, ({ one }) => ({
   }),
 }));
 
+export const bylawsRelations = relations(bylaws, ({ one }) => ({
+  team: one(teams, {
+    fields: [bylaws.teamId],
+    references: [teams.id],
+  }),
+}));
+
 export const activityLogsRelations = relations(activityLogs, ({ one }) => ({
   team: one(teams, {
     fields: [activityLogs.teamId],
@@ -175,6 +201,8 @@ export type ActivityLog = typeof activityLogs.$inferSelect;
 export type NewActivityLog = typeof activityLogs.$inferInsert;
 export type Invitation = typeof invitations.$inferSelect;
 export type NewInvitation = typeof invitations.$inferInsert;
+export type Bylaw = typeof bylaws.$inferSelect;
+export type NewBylaw = typeof bylaws.$inferInsert;
 export type TeamDataWithMembers = Team & {
   teamMembers: (TeamMember & {
     user: Pick<User, "id" | "name" | "email">;

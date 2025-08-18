@@ -22,6 +22,13 @@
       "when": 1755096583300,
       "tag": "0002_optimal_shriek",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1755519429018,
+      "tag": "0003_small_nicolaos",
+      "breakpoints": true
     }
   ]
 }
